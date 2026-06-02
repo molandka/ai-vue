@@ -29,6 +29,29 @@
                             {{ topic }}
                         </el-button>
                     </div>
+                    <div class="session-list">
+                        <h4 class="session-title">对话历史</h4>
+                        <div class="session-items">
+                            <div 
+                                v-for="Session in historySessionList" 
+                                :key="Session.id" 
+                                class="session-item"
+                                :class="{ active: sessionId === Session.id }"
+                                @click="handleSessionClick(Session)"
+                            >
+                                <div class="session-info">
+                                    <div class="session-title-row">
+                                        <span class="session-name">{{ Session.userNickname || '用户' }}</span>
+                                        <span class="session-time">{{ formatTime(Session.createdAt) }}</span>
+                                    </div>
+                                    <div class="session-preview">{{ Session.sessionTitle || Session.lastMessageContent || '暂无消息' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="historySessionList.length === 0" class="empty-session">
+                            <span>暂无历史对话</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="sidebar-overlay" v-if="showSidebar" @click="showSidebar = false"></div>
@@ -47,11 +70,11 @@
                             </div>
                         </div>
                         <div class="header-actions">
-                            <el-button size="small" type="primary" @click="createNewConversation">
-                                新建对话
-                            </el-button>
                             <el-button size="small" type="text" @click="clearChat">
                                 清空对话
+                            </el-button>
+                            <el-button size="small" type="primary" @click="handleDeleteSession(sessionId.value)">
+                                删除对话
                             </el-button>
                         </div>
                     </div>
@@ -116,9 +139,9 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { psychologicalChatStream, startNewSession } from '../api/admin'
+import { psychologicalChatStream, startNewSession, getSessionPagination, getSessionList, deleteSession } from '../api/admin'
 
 const iconUrl = new URL('../assets/logo.png', import.meta.url).href
 const chatMessages = ref([])
@@ -128,6 +151,64 @@ const sessionId = ref(null)
 const userMessage = ref(null)
 const isTyping = ref(false)
 const showSidebar = ref(false)
+const historySessionList = ref({})
+
+const handleDeleteSession = async () => {
+    if (!sessionId) {
+        ElMessage.warning('请先选择会话')
+        return
+    }
+    try {
+        await deleteSession(sessionId.value)
+        ElMessage.success('会话已删除')
+        chatMessages.value = []
+        getHistorysession()
+    } catch (error) {
+        console.error('删除会话失败:', error)
+        ElMessage.error('删除会话失败')
+    }
+}
+
+const getHistorysession = async () => {
+    await getSessionPagination({
+        PageNum: "1",
+        PageSize: "10",
+    }).then((res) => {
+        historySessionList.value = res.records
+    })
+}
+onMounted(() => {
+    getHistorysession()
+})
+
+const handleSessionClick = (Session) => {
+    console.log('Selected session:', Session.id)
+    sessionId.value = Session.id
+    getSessionList(Session.id).then((res) => {
+        if (res) {
+            chatMessages.value =(res).map(item => {
+                const isUser = item.senderType === 1 || item.senderTypeDesc === '用户'
+                const date = new Date(item.createdAt)
+                return {
+                    type: isUser ? 'user' : 'ai',
+                    content: item.content,
+                    time: date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+                    isStreaming: false
+                }
+            })
+
+            showSidebar.value = false
+            nextTick(() => {
+                scrollToBottom()
+            })
+        } else {
+            ElMessage.warning('该会话暂无消息')
+        }
+    }).catch((error) => {
+        console.error('获取会话列表失败:', error)
+        ElMessage.error('获取会话列表失败')
+    })
+}
 
 const quickTopics = [
     '如何缓解焦虑',
@@ -142,6 +223,7 @@ const createNewSession = async (initialMessage) => {
         const res = await startNewSession(initialMessage, sessionTitle)
         sessionId.value = res.sessionId
         return res
+        getHistorysession()
     } catch (error) {
         console.error('创建会话失败:', error)
         ElMessage.error('创建会话失败')
@@ -214,6 +296,7 @@ const streamChat = async (userMessage) => {
     } finally {
         isTyping.value = false
     }
+    getHistorysession()
 }
 
 const formatMarkdown = (text) => {
@@ -248,8 +331,23 @@ const clearChat = () => {
     ElMessage.success('对话已清空')
 }
 
-const createNewConversation = () => {
-    clearChat()
+
+const formatTime = (dateStr) => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    
+    if (days === 0) {
+        return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    } else if (days === 1) {
+        return '昨天'
+    } else if (days < 7) {
+        return `${days}天前`
+    } else {
+        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+    }
 }
 </script>
 
@@ -356,6 +454,91 @@ const createNewConversation = () => {
     height: 1px;
     background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
     margin: 15px 0;
+}
+
+.session-list {
+    padding-top: 10px;
+}
+
+.session-title {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.session-title::before {
+    content: '';
+    width: 4px;
+    height: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+.session-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.session-item {
+    padding: 12px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #f9fafb;
+    border: 1px solid transparent;
+}
+
+.session-item:hover {
+    background: #f3f4f6;
+    transform: translateX(4px);
+}
+
+.session-item.active {
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-color: #c7d2fe;
+}
+
+.session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.session-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.session-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.session-time {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.session-preview {
+    font-size: 13px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.empty-session {
+    text-align: center;
+    padding: 20px;
+    color: #9ca3af;
+    font-size: 13px;
 }
 
 .quick-topics {
@@ -818,6 +1001,22 @@ const createNewConversation = () => {
     
     .welcome-desc {
         font-size: 14px;
+    }
+    
+    .session-item {
+        padding: 10px 12px;
+    }
+    
+    .session-name {
+        font-size: 13px;
+    }
+    
+    .session-time {
+        font-size: 11px;
+    }
+    
+    .session-preview {
+        font-size: 12px;
     }
 }
 

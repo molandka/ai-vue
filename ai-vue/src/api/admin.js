@@ -111,3 +111,15 @@ export const startNewSession = (initialMessage, sessionTitle) => {
         sessionTitle: sessionTitle
     })
 }
+
+export const getSessionPagination = (pagination) => {
+    return service.get('/psychological-chat/sessions',{pagination})
+}
+
+export const getSessionList = (sessionId) => {
+    return service.get(`/psychological-chat/sessions/${sessionId}/messages`)
+}
+
+export const deleteSession = (sessionId) => {
+    return service.delete(`/psychological-chat/sessions/${sessionId}`)
+}
