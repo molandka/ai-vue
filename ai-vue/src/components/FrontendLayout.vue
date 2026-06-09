@@ -14,7 +14,7 @@
                 <nav class="nav-section" :class="{ 'is-open': isMobileMenuOpen }">
                     <router-link to="/" class="nav-link" @click="closeMobileMenu">首页</router-link>
                     <router-link v-if="login" to="/frontendconsultation" class="nav-link" @click="closeMobileMenu">AI咨询</router-link>
-                    <router-link v-if="login" to="/emotion-diary" class="nav-link" @click="closeMobileMenu">情绪日记</router-link>
+                    <!-- <router-link v-if="login" to="/emotion-diary" class="nav-link" @click="closeMobileMenu">情绪日记</router-link> -->
                     <router-link to="/frontendknowledge" class="nav-link" @click="closeMobileMenu">知识库</router-link>
                     <router-link v-if="!login" to="/auth/login" class="nav-link" @click="closeMobileMenu">登录</router-link>
                     <router-link v-if="!login" to="/auth/register" class="nav-link" @click="closeMobileMenu">

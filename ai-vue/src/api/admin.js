@@ -123,3 +123,11 @@ export const getSessionList = (sessionId) => {
 export const deleteSession = (sessionId) => {
     return service.delete(`/psychological-chat/sessions/${sessionId}`)
 }
+
+export const getKnowledgeList = (params) => {
+    return service.get('/knowledge/article/page',{params})
+}
+
+export const getKnowledgeDetail = (id) => {
+    return service.get(`/knowledge/article/${id}`)
+}

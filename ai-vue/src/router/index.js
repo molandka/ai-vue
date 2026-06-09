@@ -50,7 +50,7 @@ const backendRoutes = [
           title: '数据分析',
           icon: 'PieChart',
         }
-      },
+    },
       {
         path: 'knowledge',
         component: () => import('../views/Knowledge.vue'),
@@ -67,14 +67,14 @@ const backendRoutes = [
           icon: 'Notebook',
         }
       },
-      {
-        path: 'emotion',
-        component: () => import('../views/Emotion.vue'),
-        meta: {
-          title: '情绪日志',
-          icon: 'Message',
-        }
-      },
+      // {
+      //   path: 'emotion',
+      //   component: () => import('../views/Emotion.vue'),
+      //   meta: {
+      //     title: '情绪日志',
+      //     icon: 'Message',
+      //   }
+      // },
     ]
   },
   {
